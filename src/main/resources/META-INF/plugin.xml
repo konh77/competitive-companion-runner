@@ -1,0 +1,125 @@
+<idea-plugin>
+  <id>io.github.keigo.competitive-companion-runner</id>
+  <name>Competitive Companion Runner (Unofficial)</name>
+  <vendor url="https://github.com/konh77/competitive-companion-runner">konh</vendor>
+  <description><![CDATA[
+    Receives problems from the <a href="https://github.com/jmerle/competitive-companion">Competitive Companion</a>
+    browser extension and runs the sample tests with the project's Python interpreter.<br/>
+    <ul>
+      <li>AtCoder problems and whole contests: solution file + samples are created in the project.</li>
+      <li>Run samples and custom tests, see AC / WA / RE / TLE and a diff of expected vs actual output.</li>
+      <li>Receives samples on 127.0.0.1. Optional embedded problem and submission pages load atcoder.jp.</li>
+      <li>Contains no AI features. You review and submit solutions yourself.</li>
+    </ul>
+    Unofficial. Not affiliated with AtCoder Inc. Add the configured port (default 10046) under
+    Competitive Companion &rarr; Options &rarr; Custom ports.
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.python</depends>
+  <depends>PythonCore</depends>
+  <depends optional="true" config-file="companion-jcef.xml">com.intellij.modules.jcef</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <postStartupActivity implementation="companion.startup.ListenerStartupActivity"/>
+    <toolWindow id="Companion" anchor="right" icon="companion.CompanionIcons.ToolWindow"
+                factoryClass="companion.ui.CompanionToolWindowFactory"/>
+    <notificationGroup id="Companion" displayType="BALLOON"/>
+    <statusBarWidgetFactory id="Companion.StatusBar" implementation="companion.ui.ListenerStatusBarWidgetFactory" order="first"/>
+    <applicationConfigurable parentId="tools" id="companion.app" displayName="Competitive Companion"
+                             instance="companion.settings.AppConfigurable"/>
+    <projectConfigurable parentId="companion.app" id="companion.project" displayName="Project"
+                         instance="companion.settings.ProjectConfigurable"/>
+  </extensions>
+
+  <applicationListeners>
+    <listener class="companion.routing.RouterAppActivationListener" topic="com.intellij.openapi.application.ApplicationActivationListener"/>
+    <listener class="companion.routing.RouterProjectManagerListener" topic="com.intellij.openapi.project.ProjectManagerListener"/>
+  </applicationListeners>
+
+  <projectListeners>
+    <listener class="companion.routing.RouterEditorListener" topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+  </projectListeners>
+
+  <actions>
+    <action id="Companion.RunAllTests" class="companion.actions.RunAllTestsAction" text="Run Sample Tests"
+            description="Run all sample and custom tests of the current problem" icon="AllIcons.Actions.Execute">
+      <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift R"/>
+    </action>
+    <action id="Companion.RunSelectedTest" class="companion.actions.RunSelectedTestAction" text="Run Selected Test" icon="AllIcons.Actions.RunToCursor"/>
+    <action id="Companion.CancelRun" class="companion.actions.CancelRunAction" text="Cancel Run" icon="AllIcons.Actions.Suspend"/>
+    <action id="Companion.ShowDiff" class="companion.actions.ShowDiffAction" text="Show Diff" icon="AllIcons.Actions.Diff"/>
+    <action id="Companion.AddCustomTest" class="companion.actions.AddCustomTestAction" text="Add Custom Test" icon="AllIcons.General.Add"/>
+    <action id="Companion.CopySampleToCustom" class="companion.actions.CopySampleToCustomAction" text="Copy to Custom Test"/>
+    <action id="Companion.EditCustomTest" class="companion.actions.EditCustomTestAction" text="Edit Custom Test"/>
+    <action id="Companion.DeleteCustomTest" class="companion.actions.DeleteCustomTestAction" text="Delete Custom Test" icon="AllIcons.General.Remove"/>
+    <action id="Companion.ToggleJudgeMode" class="companion.actions.ToggleJudgeModeAction" text="Judge Mode"/>
+    <action id="Companion.OpenSolution" class="companion.actions.OpenSolutionAction" text="Open Solution"/>
+    <action id="Companion.ShowLocalSummary" class="companion.actions.ShowLocalSummaryAction" text="Show Samples (Offline)" description="Name, limits and samples from local files" icon="AllIcons.Actions.ListFiles"/>
+    <action id="Companion.ShowProblemPage" class="companion.actions.ShowProblemPageAction" text="Show Problem Statement" description="Open the problem page in the Companion tool window" icon="AllIcons.Actions.PreviewDetails">
+      <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="Companion.RunAllTests"/>
+    </action>
+    <action id="Companion.OpenProblemUrl" class="companion.actions.OpenProblemUrlAction" text="Open Problem in External Browser" icon="AllIcons.General.Web"/>
+    <action id="Companion.OpenSubmitPage" class="companion.actions.OpenSubmitPageAction" text="Submit (Copy Solution and Open Submit Page)" icon="AllIcons.Actions.Upload">
+      <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="Companion.ShowProblemPage"/>
+    </action>
+    <action id="Companion.CopySolution" class="companion.actions.CopySolutionAction" text="Copy Solution to Clipboard" icon="AllIcons.Actions.Copy"/>
+    <action id="Companion.RefreshIndex" class="companion.actions.RefreshIndexAction" text="Refresh Problem Index" icon="AllIcons.Actions.Refresh"/>
+    <action id="Companion.OpenDiagnostics" class="companion.actions.OpenDiagnosticsAction" text="Diagnostics" icon="AllIcons.Actions.ShowAsTree"/>
+    <action id="Companion.ToggleListener" class="companion.actions.ToggleListenerAction" text="Start/Stop Listener" icon="AllIcons.Actions.Lightning"/>
+    <action id="Companion.PinReceiveProject" class="companion.actions.PinReceiveProjectAction" text="Pin Receive Target" icon="AllIcons.General.Pin_tab"/>
+    <action id="Companion.OpenSettings" class="companion.actions.OpenSettingsAction" text="Settings" icon="AllIcons.General.Settings"/>
+
+    <group id="Companion.Toolbar">
+      <reference ref="Companion.RunAllTests"/>
+      <reference ref="Companion.RunSelectedTest"/>
+      <reference ref="Companion.CancelRun"/>
+      <separator/>
+      <reference ref="Companion.AddCustomTest"/>
+      <reference ref="Companion.ShowDiff"/>
+      <separator/>
+      <reference ref="Companion.ShowLocalSummary"/>
+      <reference ref="Companion.ShowProblemPage"/>
+      <reference ref="Companion.OpenSubmitPage"/>
+      <reference ref="Companion.CopySolution"/>
+      <reference ref="Companion.OpenProblemUrl"/>
+      <separator/>
+      <reference ref="Companion.RefreshIndex"/>
+      <reference ref="Companion.ToggleListener"/>
+      <reference ref="Companion.OpenDiagnostics"/>
+      <reference ref="Companion.OpenSettings"/>
+    </group>
+
+    <group id="Companion.ProblemPopup">
+      <reference ref="Companion.OpenSolution"/>
+      <reference ref="Companion.RunAllTests"/>
+      <reference ref="Companion.CancelRun"/>
+      <separator/>
+      <reference ref="Companion.AddCustomTest"/>
+      <reference ref="Companion.ToggleJudgeMode"/>
+      <separator/>
+      <reference ref="Companion.ShowLocalSummary"/>
+      <reference ref="Companion.ShowProblemPage"/>
+      <reference ref="Companion.OpenSubmitPage"/>
+      <reference ref="Companion.CopySolution"/>
+      <reference ref="Companion.OpenProblemUrl"/>
+    </group>
+
+    <group id="Companion.CasePopup">
+      <reference ref="Companion.RunSelectedTest"/>
+      <reference ref="Companion.ShowDiff"/>
+      <separator/>
+      <reference ref="Companion.CopySampleToCustom"/>
+      <reference ref="Companion.EditCustomTest"/>
+      <reference ref="Companion.DeleteCustomTest"/>
+    </group>
+
+    <group id="Companion.StatusBarPopup">
+      <reference ref="Companion.ToggleListener"/>
+      <reference ref="Companion.PinReceiveProject"/>
+      <reference ref="Companion.OpenDiagnostics"/>
+      <reference ref="Companion.OpenSettings"/>
+    </group>
+  </actions>
+</idea-plugin>
