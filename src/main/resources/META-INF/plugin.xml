@@ -8,7 +8,7 @@
     <ul>
       <li>AtCoder problems and whole contests: solution file + samples are created in the project.</li>
       <li>Run samples and custom tests, see AC / WA / RE / TLE and a diff of expected vs actual output.</li>
-      <li>Receives samples on 127.0.0.1. Optional embedded problem and submission pages load atcoder.jp.</li>
+      <li>Receives samples on 127.0.0.1. Optional embedded problem pages load atcoder.jp; submissions open in your normal browser.</li>
       <li>Contains no AI features. You review and submit solutions yourself.</li>
     </ul>
     Unofficial. Not affiliated with AtCoder Inc. Add the configured port (default 10046) under
@@ -61,7 +61,7 @@
       <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="Companion.RunAllTests"/>
     </action>
     <action id="Companion.OpenProblemUrl" class="companion.actions.OpenProblemUrlAction" text="Open Problem in External Browser" icon="AllIcons.General.Web"/>
-    <action id="Companion.OpenSubmitPage" class="companion.actions.OpenSubmitPageAction" text="Submit (Copy Solution and Open Submit Page)" icon="AllIcons.Actions.Upload">
+    <action id="Companion.OpenSubmitPage" class="companion.actions.OpenSubmitPageAction" text="Submit in Browser (Copy Solution)" description="Copy your current solution and open the submit page in your normal browser for login and CAPTCHA" icon="AllIcons.Actions.Upload">
       <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="Companion.ShowProblemPage"/>
     </action>
     <action id="Companion.CopySolution" class="companion.actions.CopySolutionAction" text="Copy Solution to Clipboard" icon="AllIcons.Actions.Copy"/>

@@ -26,6 +26,7 @@ import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import companion.listener.CompanionListenerService
 import companion.listener.ListenerState
+import companion.model.AtCoderUrl
 import companion.run.TestRunnerService
 import companion.settings.CompanionAppSettings
 import companion.settings.TargetProjectMode
@@ -38,6 +39,7 @@ import companion.ui.DiagnosticsDialog
 import companion.ui.DiffSupport
 import companion.ui.Notifications
 import java.awt.datatransfer.StringSelection
+import java.io.IOException
 import javax.swing.JComponent
 
 /** Resolves the target problem from the tool window selection or the active editor file. */
@@ -163,20 +165,22 @@ class OpenProblemUrlAction : RecordAction() {
     override fun perform(project: Project, rec: ProblemRecord, e: AnActionEvent) = BrowserUtil.browse(rec.manifest.url)
 }
 
-/** Copies the solution to the clipboard and opens the submit page in the embedded browser (external browser as fallback). */
+/** Uses the normal browser so login and CAPTCHA can be completed in the user's browser session. */
 class OpenSubmitPageAction : RecordAction() {
     override fun perform(project: Project, rec: ProblemRecord, e: AnActionEvent) {
-        val code = copySolution(rec)
-        val panels = CompanionToolWindowFactory.panels(project)
-        val browser = panels?.browser
-        if (panels != null && browser != null && browser.isAvailable) {
-            panels.showBrowser()
-            browser.showSubmit(rec, code)
-        } else {
-            BrowserUtil.browse("https://atcoder.jp/contests/${rec.manifest.contestId}/submit?taskScreenName=${rec.manifest.taskId}")
-            Notifications.info(project, "Competitive Companion", "Solution copied to the clipboard. Submit page opened in your browser.")
-        }
+        openSubmitInBrowser(project, rec)
     }
+}
+
+/** Shared by both toolbars. Never launch with stale clipboard contents when copying fails. */
+internal fun openSubmitInBrowser(project: Project, rec: ProblemRecord, openUrl: (String) -> Unit = { BrowserUtil.browse(it) }) {
+    val code = try { copySolution(rec) } catch (_: IOException) { null }
+    if (code == null) {
+        Notifications.info(project, "Could not copy solution", "The solution file could not be read. Check the file and try again.")
+        return
+    }
+    openUrl(AtCoderUrl(rec.manifest.contestId, rec.manifest.taskId).submitUrl)
+    Notifications.info(project, "Solution copied", "Submit page opened in your browser. Complete login or CAPTCHA if asked, paste your solution, select the language, and submit.")
 }
 
 /** Shows the problem statement in the embedded browser tab. */

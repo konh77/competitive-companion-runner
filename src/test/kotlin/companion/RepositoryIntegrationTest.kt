@@ -3,6 +3,11 @@ package companion
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import companion.actions.openSubmitInBrowser
 import com.intellij.util.ui.UIUtil
 import companion.model.TaskValidator
 import companion.model.ValidationResult
@@ -18,6 +23,8 @@ import companion.storage.Hashing
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.StringSelection
 import java.util.concurrent.CountDownLatch
 
 /** Heavy (real directory) tests: receive → files → run → verdicts → rebuild. */
@@ -197,5 +204,40 @@ class RepositoryIntegrationTest : HeavyPlatformTestCase() {
             Thread.sleep(10)
         }
         assertTrue("timed out waiting for background run", condition())
+    }
+
+    fun testSubmitCopiesUnsavedSolutionBeforeOpeningBrowser() {
+        val record = (repo().save(task(abc400a)) as SaveOutcome.Saved).record
+        val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(record.solutionPath)!!
+        val document = FileDocumentManager.getInstance().getDocument(file)!!
+        val source = "print('latest unsaved solution')\n"
+        WriteCommandAction.runWriteCommandAction(project) { document.setText(source) }
+        assertTrue(FileDocumentManager.getInstance().isDocumentUnsaved(document))
+        val clipboard = CopyPasteManager.getInstance()
+        val previous = clipboard.contents
+        try {
+            val opened = mutableListOf<String>()
+            openSubmitInBrowser(project, record) { url ->
+                assertEquals(source, clipboard.getContents(DataFlavor.stringFlavor))
+                opened.add(url)
+            }
+            assertEquals(listOf("https://atcoder.jp/contests/abc400/submit?taskScreenName=abc400_a"), opened)
+        } finally {
+            clipboard.setContents(previous ?: StringSelection(""))
+        }
+    }
+
+    fun testSubmitDoesNotOpenBrowserWhenSolutionIsMissing() {
+        val record = (repo().save(task(abc400a)) as SaveOutcome.Saved).record
+        Files.delete(record.solutionPath)
+        val clipboard = CopyPasteManager.getInstance()
+        val previous = clipboard.contents
+        try {
+            clipboard.setContents(StringSelection("unrelated clipboard text"))
+            openSubmitInBrowser(project, record) { fail("must not open submit page when copying fails") }
+            assertEquals("unrelated clipboard text", clipboard.getContents(DataFlavor.stringFlavor))
+        } finally {
+            clipboard.setContents(previous ?: StringSelection(""))
+        }
     }
 }

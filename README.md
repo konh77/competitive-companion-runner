@@ -27,8 +27,8 @@ and inspect test results without switching to a terminal.
 - **Flexible layout.** Customize solution paths, test directories, starter code, comparison
   modes, and time-limit multipliers.
 - **Problem and submission pages.** Open the statement inside PyCharm when JCEF is available.
-  The submit action copies your solution and attempts to pre-fill the submission form;
-  you select the language, review the code, and press Submit yourself.
+  Submit copies your latest code, including unsaved edits, and opens AtCoder in your normal browser
+  so you can complete login or CAPTCHA. Paste the code, select the language, and submit yourself.
 - **Multiple projects.** Receive into the last-focused project, pin a target, or choose per batch.
 
 ## Requirements
@@ -69,8 +69,8 @@ and newer IDE versions have not yet been verified. A separate JDK is only needed
 4. **Inspect** a failed case. Select it for input, expected output, actual output, and stderr;
    double-click it or choose **Show Diff** to compare outputs.
 5. **Add edge cases** with **Add Custom Test** or **Copy to Custom Test**.
-6. **Submit** with **Submit (Copy Solution and Open Submit Page)**. Check the source and language
-   on AtCoder before submitting. If pre-filling is unavailable, paste from the clipboard.
+6. **Submit** with **Submit in Browser (Copy Solution)**. In your normal browser, complete login
+   or CAPTCHA if prompted, paste the solution, select the language, and review it before submitting.
 
 Each run uses a snapshot of the saved solution. Later edits mark completed results as stale.
 Starting another run cancels the previous one, and older results cannot replace the new run's results.
@@ -137,8 +137,9 @@ and relative numeric tolerances). You can also enable automatic runs when receiv
 The receiver listens on `127.0.0.1:10046` by default. Importing data and running local tests do not
 require the plugin to fetch problem pages. **Local Summary** displays locally stored metadata and samples.
 
-**Problem Statement** and **Submit Page** load AtCoder in the embedded browser, so those features
-use the network. If a page requires authentication, log in there. Its toolbar also offers
+**Problem Statement** loads AtCoder in the embedded browser, while **Submit in Browser** opens
+the submission page in your normal browser. Both use the network. If a problem page requires
+authentication, log in there. The embedded toolbar also offers
 **Import Session Cookie…** and **Clear Session** for the embedded browser's AtCoder session.
 
 The plugin has no AI features and does not change other IDE plugins. Check the rules for your
@@ -154,7 +155,8 @@ or the Competitive Companion extension.
 | Problem arrives in the wrong project | Use **Pin Receive Target** or change the receive-target mode in settings. |
 | Interpreter is missing | Configure a local Python SDK or an absolute custom interpreter path. Remote/container interpreters are unsupported. |
 | Embedded statement is blank or unavailable | Use **Open Problem in External Browser**; embedded pages require JCEF and may require an AtCoder login. |
-| Submit form was not filled | Paste the copied solution manually and check the selected language. |
+| CAPTCHA blocks submission in an older plugin version | Update to v0.1.1 or later and use **Submit in Browser (Copy Solution)**. Complete the challenge in your normal browser, then paste the copied code. |
+| Submit form is empty | Submit copies your code to the clipboard; paste it into the browser and select the language. |
 | Stored problems are missing from the list | Run **Refresh Problem Index**. |
 | Output looks right but receives `WA` | Inspect **Show Diff** and check the comparison mode and tolerances. |
 

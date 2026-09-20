@@ -5,7 +5,7 @@ import companion.ui.ProblemBrowserFactory
 import com.intellij.openapi.Disposable as IjDisposable
 import javax.swing.JComponent
 
-import com.google.gson.Gson
+import companion.actions.openSubmitInBrowser
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
@@ -26,9 +26,6 @@ import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.util.ui.JBUI
 import companion.storage.ProblemRecord
 import companion.storage.ProblemRepository
-import org.cef.browser.CefBrowser
-import org.cef.browser.CefFrame
-import org.cef.handler.CefLoadHandlerAdapter
 import org.cef.network.CefCookie
 import org.cef.network.CefCookieManager
 import java.awt.BorderLayout
@@ -39,10 +36,10 @@ import javax.swing.JPanel
 import javax.swing.SwingConstants
 
 /**
- * Embedded browser (JCEF) tab. Three things it can show, all on explicit user action:
+ * Embedded browser (JCEF) tab for:
  *  - a local summary built from problem.json + samples (no network),
- *  - the problem page on atcoder.jp,
- *  - the submit page on atcoder.jp with the solution pre-filled into the form (the user presses Submit).
+ *  - the problem page on atcoder.jp.
+ * Submissions open in the normal browser for login and CAPTCHA compatibility.
  * The user logs in inside this browser, or imports the session cookie of their normal browser.
  */
 class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(true, true), Disposable, ProblemBrowser {
@@ -54,8 +51,6 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
         private set
     @Volatile var following: Boolean = false
         private set
-    @Volatile private var pendingSubmitCode: String? = null
-    @Volatile private var pendingSubmitUrl: String? = null
 
     init {
         val group = DefaultActionGroup(
@@ -63,7 +58,7 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
             simple("Reload", AllIcons.Actions.Refresh) { browser?.cefBrowser?.reload() },
             simple("Local Summary", AllIcons.Actions.ListFiles, { currentRecord != null }, "Name, limits and samples from problem.json (no network)") { currentRecord?.let { showLocal(it) } },
             simple("Problem Statement", AllIcons.Actions.PreviewDetails, { currentRecord != null }, "Load the problem page from atcoder.jp") { currentRecord?.let { showProblem(it) } },
-            simple("Submit Page", AllIcons.Actions.Upload, { currentRecord != null }, "Load the submit page and pre-fill the solution") { currentRecord?.let { showSubmit(it) } },
+            simple("Submit in Browser", AllIcons.Actions.Upload, { currentRecord != null }, "Copy the solution and open the submit page in your normal browser", requiresBrowser = false) { currentRecord?.let { openSubmitInBrowser(project, it) } },
             simple("Import Session Cookie…", AllIcons.Actions.AddFile, description = "Paste REVEL_SESSION from your logged-in browser") { importSession() },
             simple("Clear Session", AllIcons.Actions.GC, description = "Delete atcoder.jp cookies from the embedded browser") { clearSession() },
             simple("Open in External Browser", AllIcons.General.Web) { browser?.cefBrowser?.url?.takeIf { it.startsWith("http") }?.let { BrowserUtil.browse(it) } },
@@ -78,17 +73,6 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
             Disposer.register(this, browser)
             center.add(browser.component, BorderLayout.CENTER)
             status.text = "Select a problem. “Local Summary” works offline; “Problem Statement” loads atcoder.jp."
-            browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
-                override fun onLoadEnd(cefBrowser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
-                    if (!frame.isMain) return
-                    val code = pendingSubmitCode ?: return
-                    val target = pendingSubmitUrl ?: return
-                    val url = frame.url ?: return
-                    if (!url.startsWith(target)) return
-                    pendingSubmitCode = null
-                    cefBrowser.executeJavaScript(fillScript(code), url, 0)
-                }
-            }, browser.cefBrowser)
         } else {
             center.add(JBLabel("Embedded browser (JCEF) is not available in this IDE runtime. Use “Open Problem in External Browser”.", SwingConstants.CENTER), BorderLayout.CENTER)
         }
@@ -113,16 +97,6 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
         currentRecord = record
         following = true
         load(record.manifest.url + "?lang=ja", "${record.manifest.name} — ${record.manifest.url}  (login required during a contest: log in here or “Import Session Cookie…”)")
-    }
-
-    override fun showSubmit(record: ProblemRecord, code: String?) {
-        currentRecord = record
-        following = false
-        val url = "https://atcoder.jp/contests/${record.manifest.contestId}/submit?taskScreenName=${record.manifest.taskId}"
-        val source = code ?: runCatching { Files.readString(record.solutionPath, StandardCharsets.UTF_8) }.getOrNull()
-        pendingSubmitCode = source
-        pendingSubmitUrl = url
-        load(url, "Submit ${record.manifest.name} — solution is pre-filled (also on the clipboard). Check the language, then press Submit on the page.")
     }
 
     private fun load(url: String, text: String) {
@@ -155,10 +129,10 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
 
     // ---------------------------------------------------------------- helpers
 
-    private fun simple(text: String, icon: javax.swing.Icon, enabled: () -> Boolean = { true }, description: String? = null, run: () -> Unit) =
+    private fun simple(text: String, icon: javax.swing.Icon, enabled: () -> Boolean = { true }, description: String? = null, requiresBrowser: Boolean = true, run: () -> Unit) =
         object : AnAction(text, description, icon) {
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
-            override fun update(e: AnActionEvent) { e.presentation.isEnabled = browser != null && enabled() }
+            override fun update(e: AnActionEvent) { e.presentation.isEnabled = (!requiresBrowser || browser != null) && enabled() }
             override fun actionPerformed(e: AnActionEvent) = run()
         }
 
@@ -187,20 +161,6 @@ class ProblemBrowserPanel(private val project: Project) : SimpleToolWindowPanel(
         }
         sb.append("</body></html>")
         return sb.toString()
-    }
-
-    private fun fillScript(code: String): String {
-        val literal = Gson().toJson(code)
-        return """
-            (function () {
-              var code = $literal;
-              try { if (window.ace && document.getElementById('editor')) { ace.edit('editor').setValue(code, -1); } } catch (e) {}
-              var ids = ['sourceCode', 'plain-textarea'];
-              for (var i = 0; i < ids.length; i++) { var el = document.getElementById(ids[i]); if (el) { el.value = code; } }
-              var tas = document.querySelectorAll('textarea[name="sourceCode"]');
-              for (var j = 0; j < tas.length; j++) { tas[j].value = code; }
-            })();
-        """.trimIndent()
     }
 
     override fun dispose() {}

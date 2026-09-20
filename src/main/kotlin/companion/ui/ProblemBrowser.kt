@@ -13,7 +13,6 @@ interface ProblemBrowser {
     fun setRecord(record: ProblemRecord?)
     fun showLocal(record: ProblemRecord)
     fun showProblem(record: ProblemRecord)
-    fun showSubmit(record: ProblemRecord, code: String? = null)
 }
 
 interface ProblemBrowserFactory {
